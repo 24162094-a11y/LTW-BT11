@@ -122,6 +122,14 @@ public class CustomerOrder_24162094 {
         return status;
     }
 
+    public String getStatusLabel() {
+        OrderStatus_24162094 orderStatus = OrderStatus_24162094.fromCode(status);
+        if (orderStatus != null) {
+            return orderStatus.getLabel();
+        }
+        return "PENDING".equalsIgnoreCase(status) ? OrderStatus_24162094.NEW.getLabel() : status;
+    }
+
     public void setStatus(String status) {
         this.status = status;
     }

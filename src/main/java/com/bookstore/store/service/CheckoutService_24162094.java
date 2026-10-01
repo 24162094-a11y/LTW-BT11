@@ -3,6 +3,7 @@ package com.bookstore.store.service;
 import com.bookstore.store.entity.Book_24162094;
 import com.bookstore.store.entity.CustomerOrder_24162094;
 import com.bookstore.store.entity.OrderItem_24162094;
+import com.bookstore.store.entity.OrderStatus_24162094;
 import com.bookstore.store.entity.User_24162094;
 import com.bookstore.store.utils.JPAUtil_24162094;
 import jakarta.persistence.EntityManager;
@@ -10,6 +11,7 @@ import jakarta.persistence.LockModeType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -67,7 +69,7 @@ public class CheckoutService_24162094 {
             order.setShippingAddress(normalizedAddress);
             order.setNote(normalizedNote);
             order.setPaymentMethod("COD");
-            order.setStatus("PENDING");
+            order.setStatus(OrderStatus_24162094.NEW.getCode());
             order.setCreatedAt(LocalDateTime.now());
 
             BigDecimal total = BigDecimal.ZERO;
@@ -127,6 +129,33 @@ public class CheckoutService_24162094 {
                     .getResultStream()
                     .findFirst()
                     .orElse(null);
+        }
+    }
+
+    public List<CustomerOrder_24162094> findOrdersForUser(Integer userId,
+                                                          OrderStatus_24162094 status) {
+        if (userId == null) {
+            return List.of();
+        }
+        try (EntityManager entityManager = entityManagerProvider.get()) {
+            String query = "select distinct o from CustomerOrder_24162094 o "
+                    + "left join fetch o.items where o.userId = :userId";
+            if (status == OrderStatus_24162094.NEW) {
+                query += " and o.status in :statuses";
+            } else if (status != null) {
+                query += " and o.status = :status";
+            }
+            query += " order by o.createdAt desc, o.orderId desc";
+
+            var typedQuery = entityManager.createQuery(query, CustomerOrder_24162094.class)
+                    .setParameter("userId", userId);
+            if (status == OrderStatus_24162094.NEW) {
+                typedQuery.setParameter("statuses", List.of(
+                        OrderStatus_24162094.NEW.getCode(), "PENDING"));
+            } else if (status != null) {
+                typedQuery.setParameter("status", status.getCode());
+            }
+            return typedQuery.getResultList();
         }
     }
 

@@ -2,6 +2,7 @@ package com.bookstore.store.service;
 
 import com.bookstore.store.entity.Book_24162094;
 import com.bookstore.store.entity.CustomerOrder_24162094;
+import com.bookstore.store.entity.OrderStatus_24162094;
 import com.bookstore.store.entity.User_24162094;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -73,7 +75,7 @@ class CheckoutService_24162094Test {
         CustomerOrder_24162094 order = checkoutService.findOrderForUser(orderId, userId);
         assertNotNull(order);
         assertEquals("COD", order.getPaymentMethod());
-        assertEquals("PENDING", order.getStatus());
+        assertEquals(OrderStatus_24162094.NEW.getCode(), order.getStatus());
         assertEquals(new BigDecimal("25.00"), order.getTotalAmount());
         assertEquals(1, order.getItems().size());
         assertEquals("First", order.getItems().get(0).getBookTitle());
@@ -118,6 +120,26 @@ class CheckoutService_24162094Test {
         assertNotNull(checkoutService.findOrderForUser(orderId, userId));
     }
 
+    @Test
+    void filtersEveryStatusForCurrentUserAndIncludesLegacyPendingAsNew() {
+        for (OrderStatus_24162094 status : OrderStatus_24162094.values()) {
+            persistOrder(userId, status.getCode());
+        }
+        persistOrder(userId, "PENDING");
+        persistOrder(createAnotherUser(), OrderStatus_24162094.CONFIRMED.getCode());
+
+        for (OrderStatus_24162094 status : OrderStatus_24162094.values()) {
+            var orders = checkoutService.findOrdersForUser(userId, status);
+            assertEquals(status == OrderStatus_24162094.NEW ? 2 : 1, orders.size());
+            assertEquals(userId, orders.get(0).getUserId());
+            assertEquals(status.getLabel(), orders.get(0).getStatusLabel());
+        }
+
+        assertEquals(9, checkoutService.findOrdersForUser(userId, null).size());
+        assertEquals(OrderStatus_24162094.NEW.getLabel(),
+                orderWithStatus("PENDING").getStatusLabel());
+    }
+
     private Integer persistBook(EntityManager entityManager, String title,
                                 String price, int quantity) {
         Book_24162094 book = new Book_24162094();
@@ -159,6 +181,41 @@ class CheckoutService_24162094Test {
             entityManager.persist(user);
             entityManager.getTransaction().commit();
             return user.getUserId();
+        } finally {
+            entityManager.close();
+        }
+    }
+
+    private void persistOrder(Integer ownerId, String status) {
+        EntityManager entityManager = entityManagerFactory.createEntityManager();
+        try {
+            entityManager.getTransaction().begin();
+            CustomerOrder_24162094 order = new CustomerOrder_24162094();
+            order.setUserId(ownerId);
+            order.setRecipientName("Buyer");
+            order.setPhone("0900000000");
+            order.setShippingAddress("1 Book Street");
+            order.setTotalAmount(BigDecimal.TEN);
+            order.setPaymentMethod("COD");
+            order.setStatus(status);
+            order.setCreatedAt(LocalDateTime.now());
+            entityManager.persist(order);
+            entityManager.getTransaction().commit();
+        } finally {
+            entityManager.close();
+        }
+    }
+
+    private CustomerOrder_24162094 orderWithStatus(String status) {
+        EntityManager entityManager = entityManagerFactory.createEntityManager();
+        try {
+            return entityManager.createQuery(
+                            "select o from CustomerOrder_24162094 o "
+                                    + "where o.userId = :userId and o.status = :status",
+                            CustomerOrder_24162094.class)
+                    .setParameter("userId", userId)
+                    .setParameter("status", status)
+                    .getSingleResult();
         } finally {
             entityManager.close();
         }

@@ -34,6 +34,7 @@
                 <a href="${pageContext.request.contextPath}/login">Đăng nhập</a>
                 </c:when>
                 <c:otherwise>
+                <a href="${pageContext.request.contextPath}/orders">Đơn hàng</a>
                 <a href="${pageContext.request.contextPath}/auth/logout">Đăng xuất</a>
                 </c:otherwise>
             </c:choose>

@@ -4,7 +4,7 @@
 
 <h1>Đặt hàng thành công</h1>
 <p>Mã đơn hàng: <strong><c:out value="${order.orderId}" /></strong></p>
-<p>Trạng thái: <c:out value="${order.status}" /></p>
+<p>Trạng thái: <c:out value="${order.statusLabel}" /></p>
 <p>Thanh toán: Thanh toán khi nhận hàng (COD)</p>
 <p>Người nhận: <c:out value="${order.recipientName}" /> | <c:out value="${order.phone}" /></p>
 <p>Địa chỉ: <c:out value="${order.shippingAddress}" /></p>
